@@ -68,9 +68,15 @@ public:
 
 	virtual bool begin() = 0;
 
-	//starts a measurement. 
+	//starts a pressure measurement. must be called as soon as possible after a temperature measurement. 
+	//returns false if a measurement is currently in progress.
 	//@return true on success, false otherwise. 
-	bool measure();
+	bool measurePressure();
+
+	//starts a temperature measurement. returns false if a measurement 
+	//is currently in progress.
+	//@return true on success, false otherwise. 
+	bool measureTemperature();
 
 	//@return true if a measurement was completed, false otherwise. 
 	bool hasValue();
@@ -97,21 +103,13 @@ public:
 	resets all registers to default values. */
 	void resetToDefaults();
 
-	uint8_t readSamplingMode();
+	uint8_t getSamplingMode();
 
-	bool writeSamplingMode(uin8_t mode);
+	bool setSamplingMode(uin8_t mode);
 
 	bool readSoftwareOversamplingMode();
 
 	bool writeSoftwareOversamplingMode();
-
-	//@return sensors power mode as power_mode_t.
-	uint8_t readPowerMode();
-
-	//sets the sensors power mode. 
-	//@param power mode as power_mode_t
-	//@return true on success, false otherwise. 
-	bool writePowerMode(uint8_t mode);
 
 protected:
 	static const uint8_t BMP180_ID = 0x55;
@@ -153,17 +151,21 @@ private:
 		BMP180_MASK_ID = 0b11111111,
 
 		//register 0xE0
-		BMP180_MSAK_RESET = 0b11111111,
+		BMP180_MASK_RESET = 0b11111111,
 
 		//register 0xF4
 		BMP180_MASK_OSS = 0b11000000,
 		BMP180_MASK_SCO = 0b00100000,
 		BMP180_MASK_MCTRL = 0b00011111,
+
+		//register 0xF6
+		BMP180_MASK_PRESS = 0x000FFFFF,		//20 bits
+		BMP180_MASK_TEMP = 0x0000FFFF,		//16 bits
 	};
 	
 	static const uint16_t BMP180_MASK_CAL = 0xFFFF;
 
-	static const uint8_t BMP180_RESET = 0xB6;
+	static const uint8_t BMP180_CMD_RESET = 0xB6;
 
 	/*
 	@param mask
@@ -221,9 +223,15 @@ private:
 
 	bool readCalibrationParameters();
 
-	uint32_t raw_pressure_;
+	BMP180CalParams cal_params_;
 
-	uint32_t raw_temp_;
+	uint8_t sampling_mode_;
+
+	int32_t up_;
+
+	int32_t ut_;
+
+	int32_t B5_;
 };
 
 class BMP180I2C : public BMP180MI

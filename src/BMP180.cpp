@@ -1,6 +1,6 @@
 //Multi interface Bosch Sensortec BMP280  pressure sensor library 
 // Copyright (c) 2018 Gregor Christandl <christandlg@yahoo.com>
-// home: https://bitbucket.org/christandlg/bmp280mi
+// home: https://bitbucket.org/christandlg/BMP180
 //
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
@@ -17,156 +17,178 @@
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 
-#include "BMP280MI.h"
+#include "BMP180MI.h"
 
-SPISettings BMP280MISPI::spi_settings_ = SPISettings(2000000, MSBFIRST, SPI_MODE1);
-
-BMP280MI::BMP280MI()
+BMP180MI::BMP180() : 
+sampling_mode_(BMP180MI::MODE_ULP),
+up_(0L),
+ut_(0l)
 {
 	//nothing to do here...
 }
 
-BMP280MI::~BMP280MI()
+BMP180MI::~BMP180()
 {
 	//nothing to do here...
 }
 
-bool BMP280MI::measure()
+bool BMP180MI::measurePressure()
 {
 	//return false if a measurement is already running. 
-	if (readRegisterValue(BMP280_REG_STATUS, BMP280_MASK_STATUS_MEASURING))
+	if (readRegisterValue(BMP180_REG_CTRL_MEAS, BMP180_MASK_SCO))
 		return false;
+	
+	uint8_t measure_cmd = (sampling_mode_ << 6) | BMP180_CMD_PRESS;
 
-	//start a forced measurement. 
-	writeRegisterValue(BMP280_REG_CTRL_MEAS, BMP280_MASK_MODE, BMP280_MODE_FORCED);
+	//start a measurement. 
+	writeRegisterValue(BMP180_REG_CTRL_MEAS, BMP180_MASK_OSS | BMP180_MASK_MCTRL, measure_cmd);
 
 	return true;
 }
 
-bool BMP280MI::hasValue()
+bool BMP180MI::measureTemperature()
 {
-	return !static_cast<bool>(readRegisterValue(BMP280_REG_STATUS, BMP280_MASK_STATUS_MEASURING));
+	//return false if a measurement is already running. 
+	if (readRegisterValue(BMP180_REG_CTRL_MEAS, BMP180_MASK_SCO))
+		return false;
+
+	//start a measurement. 
+	writeRegisterValue(BMP180_REG_CTRL_MEAS, BMP180_MASK_MCTRL, BMP180_CMD_TEMP);
+
+	return true;
 }
 
-float BMP280MI::getPressure()
+bool BMP180MI::hasValue()
 {
-	//TODO implement pressure calculation 
-	return NAN;
+	if(readRegisterValue(BMP180_REG_CTRL_MEAS, BMP180_MASK_SCO));
+		return false;
+
+	uint8_t mode = readRegisterValue(BMP180_REG_CTRL_MEAS, BMP180_MASK_MCTRL);
+
+	switch (mode)
+	{
+		case BMP180_CMD_PRESS:
+		up_ = readRegisterValueBurst(BMP180_REG_OUT, BMP180_MASK_PRESS, 3);
+		up_ >>= (8 - sampling_mode_);
+		break;
+		case BMP180_CMD_TEMP:
+		up_ = readRegisterValueBurst(BMP180_REG_OUT, BMP180_MASK_TEMP, 2);
+		break;
+		default:
+		return false;
+	}
+
+	return true;
 }
 
-float BMP280MI::getTemperature()
+float BMP180MI::getPressure()
 {
-	//TODO implement temperature calculation 
-	return NAN;
+	int32_t p = 0;
+
+	int32_t B6 = B5_ - 4000;
+
+	int32_t X1 = (cal_params_.cp_B2_ * ((B6 * B6) >> 12) >> 11;
+
+	int32_t X2 = (cal_params_.cp_AC2_ * B6) >> 11;
+
+	int32_t X3 = X1 + X2;
+
+	int32_t B3 = ((((cal_params_.cp_AC1_ << 2) + X3) << sampling_mode_) + 2) >> 2;
+
+	X1 = (cal_params_.cp_AC3_ * B6) >> 13;
+
+	X2 = (cal_params_.B1 * ((B6 * B6) >> 12 )) >> 16;
+
+	X3 = (X1 + X2 + 2) >> 2;
+
+	uint32_t B4 = cal_params_.cp_AC4_ * (static_cast<uint32_t>(X3 + 32768) >> 15);
+
+	uint32_t B7 = static_cast<uint32_t>(up_ - B3) * (50000 >> sampling_mode_);
+
+	if (B7 < 0x80000000)
+		p = (B7 << 1) / B4;
+	else
+		p = (B7 / B4) << 1;
+
+	X1 = (p << 8) * (p << 8);
+
+	X1 = (X1 * 3038) >> 16;
+
+	X2 = (-7357 * p) >> 16;
+
+	p = p + ((X1 + X2 + 3791) >> 4);
+
+	return static_cast<float>(p);
 }
 
-float BMP280MI::readTemperature()
+float BMP180MI::getTemperature()
 {
-	if (!measure())
+	int32_t X1 = ((ut_ - cal_params_.AC6) * cal_params_.AC5) >> 15;
+
+	int32_t X2 = (cal_params_.cp_MC_ << 11) / (X1 + cal_params_.cp_MD_);
+
+	B5_ = X1 + X2;
+
+	int32_t T = (B5_ + 8) >> 4;
+
+	return static_cast<float>(T) * 0.01;
+}
+
+float BMP180MI::readTemperature()
+{
+	if (!measureTemperature())
 		return NAN;
 
 	do
 	{
-		delay(100);
+		delay(10);
 	} while (!hasValue());
 
 	return getTemperature();
 }
 
-float BMP280MI::readPressure()
+float BMP180MI::readPressure()
 {
-	if (!measure())
+	if (isNAN(readTemperature()))
+		return NAN;
+
+	if (!measurePressure())
 		return NAN;
 
 	do
 	{
-		delay(100);
+		delay(10);
 	} while (!hasValue());
 
 	return getPressure();
 }
 
-uint8_t BMP280MI::readID()
+uint8_t BMP180MI::readID()
 {
-	return readRegisterValue(BMP280_REG_ID, BMP280_MASK_ID);
+	return readRegisterValue(BMP180_REG_ID, BMP180_MASK_ID);
 }
 
-void BMP280MI::resetToDefaults()
+void BMP180MI::resetToDefaults()
 {
-	writeRegisterValue(BMP280_REG_RESET, BMP280_MSAK_RESET, BMP280_RESET);
+	writeRegisterValue(BMP180_REG_RESET, BMP180_MASK_RESET, BMP180_CMD_RESET);
 }
 
-uint8_t BMP280MI::readOversamplingPressure()
+uint8_t BMP180MI::getSamplingMode()
 {
-	return readRegisterValue(BMP280_REG_CTRL_MEAS, BMP280_MASK_OSRS_P);
+	return sampling_mode_;
 }
 
-bool BMP280MI::writeOversamplingPressure(uint8_t value)
+bool BMP180MI::setSamplingMode(uin8_t mode)
 {
-	if (value > 0b111)
+	if (mode > 3)
 		return false;
 
-	writeRegisterValue(BMP280_REG_CTRL_MEAS, BMP280_MASK_OSRS_P, value);
+	sampling_mode_ = mode;
 
 	return true;
-}
+}	
 
-uint8_t BMP280MI::readOversamplingTemperature()
-{
-	return readRegisterValue(BMP280_REG_CTRL_MEAS, BMP280_MASK_OSRS_T);
-}
-
-bool BMP280MI::writeOversamplingTemperature(uint8_t value)
-{
-	if (value > 0b111)
-		return false;
-
-	writeRegisterValue(BMP280_REG_CTRL_MEAS, BMP280_MASK_OSRS_T, value);
-
-	return true;
-}
-
-uint8_t BMP280MI::readFilterSetting()
-{
-	//TODO implement
-}
-
-bool BMP280MI::writeFilterSetting(uint8_t setting)
-{
-	//TODO implement
-}
-
-uint8_t BMP280MI::readPowerMode()
-{
-	return readRegisterValue(BMP280_REG_CTRL_MEAS, BMP280_MASK_MODE);
-}
-
-bool BMP280MI::writePowerMode(uint8_t mode)
-{
-	if (mode > 0x03)
-		return false;
-
-	writeRegisterValue(BMP280_REG_CTRL_MEAS, BMP280_MASK_MODE, mode);
-
-	return true;
-}
-
-uint8_t BMP280MI::readStandbyTime()
-{
-	return readRegisterValue(BMP280_REG_CONFIG, BMP280_MASK_T_SB);
-}
-
-bool BMP280MI::writeStandbyTime(uint8_t standby_time)
-{
-	if (standby_time > 0x07)
-		return false;
-
-	writeRegisterValue(BMP280_REG_CONFIG, BMP280_MASK_T_SB, standby_time);
-
-	return true;
-}
-
-uint8_t BMP280MI::getMaskShift(uint8_t mask)
+uint8_t BMP180MI::getMaskShift(uint8_t mask)
 {
 	uint8_t return_value = 0;
 
@@ -183,13 +205,13 @@ uint8_t BMP280MI::getMaskShift(uint8_t mask)
 	return return_value;
 }
 
-uint8_t BMP280MI::getMaskedBits(uint8_t reg, uint8_t mask)
+uint8_t BMP180MI::getMaskedBits(uint8_t reg, uint8_t mask)
 {
 	//extract masked bits
 	return ((reg & mask) >> getMaskShift(mask));
 }
 
-uint8_t BMP280MI::setMaskedBits(uint8_t reg, uint8_t mask, uint8_t value)
+uint8_t BMP180MI::setMaskedBits(uint8_t reg, uint8_t mask, uint8_t value)
 {
 	//clear mask bits in register
 	reg &= (~mask);
@@ -198,23 +220,23 @@ uint8_t BMP280MI::setMaskedBits(uint8_t reg, uint8_t mask, uint8_t value)
 	return ((value << getMaskShift(mask)) & mask) | reg;
 }
 
-uint8_t BMP280MI::readRegisterValue(uint8_t reg, uint8_t mask)
+uint8_t BMP180MI::readRegisterValue(uint8_t reg, uint8_t mask)
 {
 	return getMaskedBits(readRegister(reg), mask);
 }
 
-void BMP280MI::writeRegisterValue(uint8_t reg, uint8_t mask, uint8_t value)
+void BMP180MI::writeRegisterValue(uint8_t reg, uint8_t mask, uint8_t value)
 {
 	uint8_t reg_val = readRegister(reg);
 	writeRegister(reg, setMaskedBits(reg_val, mask, value));
 }
 
-bool BMP280MI::readRawValues()
+bool BMP180MI::readRawValues()
 {
 	return false;
 }
 
-bool BMP280MI::readCompensationParameters()
+bool BMP180MI::readCompensationParameters()
 {
 	return false;
 }
