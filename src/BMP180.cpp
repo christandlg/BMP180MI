@@ -19,7 +19,7 @@
 
 #include "BMP180MI.h"
 
-BMP180MI::BMP180() : 
+BMP180MI::BMP180MI() : 
 sampling_mode_(BMP180MI::MODE_ULP),
 up_(0L),
 ut_(0l)
@@ -27,7 +27,7 @@ ut_(0l)
 	//nothing to do here...
 }
 
-BMP180MI::~BMP180()
+BMP180MI::~BMP180MI()
 {
 	//nothing to do here...
 }
@@ -87,11 +87,11 @@ bool BMP180MI::hasValue()
 	switch (mode)
 	{
 		case BMP180_CMD_PRESS:
-		up_ = readRegisterValueBurst(BMP180_REG_OUT, BMP180_MASK_PRESS, 3);
+		up_ = static_cast<int32_t>(readRegisterValueBurst(BMP180_REG_OUT, BMP180_MASK_PRESS, 3));
 		up_ >>= (8 - sampling_mode_);
 		break;
 		case BMP180_CMD_TEMP:
-		up_ = readRegisterValueBurst(BMP180_REG_OUT, BMP180_MASK_TEMP, 2);
+		up_ = static_cast<int32_t>(readRegisterValueBurst(BMP180_REG_OUT, BMP180_MASK_TEMP, 2));
 		break;
 		default:
 		return false;
@@ -306,17 +306,6 @@ uint32_t BMP180MI::readRegisterBurst(uint8_t reg, uint8_t length)
 
 	return data;
 }
-
-bool BMP180MI::readRawValues()
-{
-	return false;
-}
-
-bool BMP180MI::readCalibrationParameters()
-{
-	return false;
-}
-
 
 //-----------------------------------------------------------------------
 //BMP180I2C

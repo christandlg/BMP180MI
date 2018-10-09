@@ -27,16 +27,7 @@
 class BMP180MI
 {
 public:
-
-	enum filter_setting_t : uint8_t
-	{
-		FILTER_OFF = 0b000,
-		FILTER_x02 = 0b001,
-		FILTER_x04 = 0b010,
-		FILTER_x08 = 0b011,
-		FILTER_x16 = 0b100,
-	};
-
+	//pressure oversampling modes
 	enum sampling_mode_t : uint8_t
 	{
 		MODE_ULP = 0,	//1 sample, ~4.5ms conversion time
@@ -61,6 +52,8 @@ public:
 		int16_t cp_MC_;
 		int16_t cp_MD_;
 	};
+	
+	static const uint8_t BMP180_ID = 0x55;
 
 	BMP180MI();
 	virtual ~BMP180MI();
@@ -98,6 +91,8 @@ public:
 	//can be used as a communication check. 
 	uint8_t readID();
 
+	/*
+	@return BMP180CalParams struct containing BMP180 calibration parameters. */
 	BMP180CalParams readCalParams();
 
 	/*
@@ -112,9 +107,6 @@ public:
 	@param sampling mode as sampling_mode_t. 
 	@return true on success, false otherwise. */
 	bool setSamplingMode(uin8_t mode);
-
-protected:
-	static const uint8_t BMP180_ID = 0x55;
 
 private:
 	enum BMP180_register_t : uint8_t
