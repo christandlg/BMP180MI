@@ -243,29 +243,24 @@ bool BMP180MI::readCompensationParameters()
 
 
 //-----------------------------------------------------------------------
-//BMP280I2C
-BMP280I2C::BMP280I2C(uint8_t i2c_address) :
+//BMP180I2C
+BMP180I2C::BMP180I2C(uint8_t i2c_address) :
 	i2c_address_(i2c_address)
 {
 	//nothing to do here...
 }
 
-BMP280I2C::~BMP280I2C()
+BMP180I2C::~BMP180I2C()
 {
 	//nothing to do here...
 }
 
-bool BMP280I2C::begin()
+bool BMP180I2C::beginInterface()
 {
-	if (readID() != BMP280_ID)
-		return false;
-
-	resetToDefaults();
-
 	return true;
 }
 
-uint8_t BMP280I2C::readRegister(uint8_t reg)
+uint8_t BMP180I2C::readRegister(uint8_t reg)
 {
 	#if defined(ARDUINO_SAM_DUE)
 		//workaround for Arduino Due. The Due seems not to send a repeated start with the code above, so this 
@@ -282,67 +277,15 @@ uint8_t BMP280I2C::readRegister(uint8_t reg)
 	return Wire.read();
 }
 
-uint32_t BMP280I2C::readRegisterBurst(uint8_t reg, uint8_t length)
+uint32_t BMP180I2C::readRegisterBurst(uint8_t reg, uint8_t length)
 {
 	return uint32_t();
 }
 
-void BMP280I2C::writeRegister(uint8_t reg, uint8_t value)
+void BMP180I2C::writeRegister(uint8_t reg, uint8_t value)
 {
 	Wire.beginTransmission(i2c_address_);
 	Wire.write(reg);
 	Wire.write(value);
 	Wire.endTransmission();
-}
-
-//-----------------------------------------------------------------------
-//BMP280SPI
-BMP280SPI::BMP280SPI(uint8_t chip_select) :
-	chip_select_(chip_select)
-{
-	//nothing to do here...
-}
-
-BMP280SPI::~BMP280SPI()
-{
-	//nothing to do here...
-}
-
-bool BMP280SPI::begin()
-{
-	//TODO implement
-}
-
-uint8_t BMP280SPI::readRegister(uint8_t reg)
-{
-	uint8_t return_value = 0;
-	
-	SPI.beginTransaction(spi_settings_);
-
-	digitalWrite(cs_, LOW);				//select sensor
-
-	SPI.transfer((reg & 0x3F) | 0x40);	//select register and set pin 7 (indicates read)
-	
-	return_value = SPI.transfer(0);
-
-	digitalWrite(cs_, HIGH);			//deselect sensor
-	
-	return return_value;
-}
-
-uint32_t BMP280SPI::readRegisterBurst(uint8_t reg, uint8_t length)
-{
-	return uint32_t();
-}
-
-void BMP280SPI::writeRegister(uint8_t reg, uint8_t value)
-{
-	SPI.beginTransaction(spi_settings_);
-
-	digitalWrite(cs_, LOW);				//select sensor
-
-	SPI.transfer((reg & 0x3F));			//select regsiter 
-	SPI.transfer(value);
-
-	digitalWrite(cs_, HIGH);			//deselect sensor
 }

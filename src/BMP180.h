@@ -66,7 +66,7 @@ public:
 	BMP180MI();
 	virtual ~BMP180MI();
 
-	virtual bool begin() = 0;
+	bool begin();
 
 	//starts a pressure measurement. must be called as soon as possible after a temperature measurement. 
 	//returns false if a measurement is currently in progress.
@@ -167,6 +167,8 @@ private:
 
 	static const uint8_t BMP180_CMD_RESET = 0xB6;
 
+	virtual bool beginInterface() = 0;
+
 	/*
 	@param mask
 	@return number of bits to shift value so it fits into mask. */
@@ -240,9 +242,9 @@ public:
 	BMP180I2C(uint8_t i2c_address);
 	virtual ~BMP180I2C();
 
-	virtual bool begin();
-
 private:
+	bool beginInterface();
+
 	uint8_t readRegister(uint8_t reg);
 
 	uint32_t readRegisterBurst(uint8_t reg, uint8_t length);
