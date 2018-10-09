@@ -32,6 +32,25 @@ BMP180MI::~BMP180()
 	//nothing to do here...
 }
 
+bool BMx280MI::begin()
+{
+	//return false if the interface could not be initialized. 
+	if (!beginInterface())
+		return false;
+
+	//read sensor ID. 
+	uint8_t id = readID();
+
+	//check sensor ID. return false if sensor ID does not match a BMP180 ID.
+	if (id != BMP180::BMP180_ID)
+		return false;
+
+	//read compensation parameters
+	cal_params_ = readCalibrationParameters();
+
+	return true;
+}
+
 bool BMP180MI::measurePressure()
 {
 	//return false if a measurement is already running. 
@@ -168,6 +187,42 @@ uint8_t BMP180MI::readID()
 	return readRegisterValue(BMP180_REG_ID, BMP180_MASK_ID);
 }
 
+BMP180MI::BMP180CalParams BMP180MI::readCalibrationParameters()
+{
+	BMP180MI cal_params = {
+		0, //cp_AC1_
+		0, //cp_AC2_
+		0, //cp_AC3_
+		0, //cp_AC4_
+		0, //cp_AC5_
+		0, //cp_AC6_
+		
+		0, //cp_B1_
+		0, //cp_B2_
+		
+		0, //cp_MB_
+		0, //cp_MC_
+		0, //cp_MD_
+	};
+
+	//read compensation parameters
+	cal_params.cp_AC1_ = static_cast<int16_t>(readRegisterValueBurst(BMP180_REG_CAL_AC1, BMP180_MASK_CAL, 2));
+	cal_params.cp_AC2_ = static_cast<int16_t>(readRegisterValueBurst(BMP180_REG_CAL_AC1, BMP180_MASK_CAL, 2));
+	cal_params.cp_AC3_ = static_cast<int16_t>(readRegisterValueBurst(BMP180_REG_CAL_AC1, BMP180_MASK_CAL, 2));
+	cal_params.cp_AC4_ = readRegisterValueBurst(BMP180_REG_CAL_AC1, BMP180_MASK_CAL, 2);
+	cal_params.cp_AC5_ = readRegisterValueBurst(BMP180_REG_CAL_AC1, BMP180_MASK_CAL, 2);
+	cal_params.cp_AC6_ = readRegisterValueBurst(BMP180_REG_CAL_AC1, BMP180_MASK_CAL, 2);
+	
+	cal_params.cp_B1_ = static_cast<int16_t>(readRegisterValueBurst(BMP180_REG_CAL_B1, BMP180_MASK_CAL, 2));
+	cal_params.cp_B2_ = static_cast<int16_t>(readRegisterValueBurst(BMP180_REG_CAL_B2, BMP180_MASK_CAL, 2));
+	
+	cal_params.cp_MB_ = static_cast<int16_t>(readRegisterValueBurst(BMP180_REG_CAL_MB, BMP180_MASK_CAL, 2));
+	cal_params.cp_MC_ = static_cast<int16_t>(readRegisterValueBurst(BMP180_REG_CAL_MC, BMP180_MASK_CAL, 2));
+	cal_params.cp_MD_ = static_cast<int16_t>(readRegisterValueBurst(BMP180_REG_CAL_MD, BMP180_MASK_CAL, 2));
+
+	return cal_params;
+}
+
 void BMP180MI::resetToDefaults()
 {
 	writeRegisterValue(BMP180_REG_RESET, BMP180_MASK_RESET, BMP180_CMD_RESET);
@@ -231,12 +286,33 @@ void BMP180MI::writeRegisterValue(uint8_t reg, uint8_t mask, uint8_t value)
 	writeRegister(reg, setMaskedBits(reg_val, mask, value));
 }
 
+uint32_t BMP180MI::readRegisterValueBurst(uint8_t reg, uint32_t mask, uint8_t length)
+{
+	return getMaskedBits(readRegisterBurst(reg, length), mask);
+}
+
+uint32_t BMP180MI::readRegisterBurst(uint8_t reg, uint8_t length)
+{
+	if (length > 4)
+		return 0L;
+
+	uint32_t data = 0L;
+
+	for (uint8_t i = 0; i < length; i++)
+	{
+		data <<= 8;
+		data |= static_cast<uint32_t>(readRegister(reg));
+	}
+
+	return data;
+}
+
 bool BMP180MI::readRawValues()
 {
 	return false;
 }
 
-bool BMP180MI::readCompensationParameters()
+bool BMP180MI::readCalibrationParameters()
 {
 	return false;
 }
@@ -279,7 +355,30 @@ uint8_t BMP180I2C::readRegister(uint8_t reg)
 
 uint32_t BMP180I2C::readRegisterBurst(uint8_t reg, uint8_t length)
 {
-	return uint32_t();
+	if (length > 4)
+		return 0L;
+
+	uint32_t data = 0L;
+
+#if defined(ARDUINO_SAM_DUE)
+	//workaround for Arduino Due. The Due seems not to send a repeated start with the code below, so this 
+	//undocumented feature of Wire::requestFrom() is used. can be used on other Arduinos too (tested on Mega2560)
+	//see this thread for more info: https://forum.arduino.cc/index.php?topic=385377.0
+	Wire.requestFrom(address_, length, data, length, true);
+#else
+	Wire.beginTransmission(address_);
+	Wire.write(reg);
+	Wire.endTransmission(false);
+	Wire.requestFrom(address_, static_cast<uint8_t>(length));
+
+	for (uint8_t i = 0; i < length; i++)
+	{
+		data <<= 8;
+		data |= Wire.read();
+	}
+#endif
+
+	return data;
 }
 
 void BMP180I2C::writeRegister(uint8_t reg, uint8_t value)

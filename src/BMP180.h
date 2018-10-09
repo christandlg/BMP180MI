@@ -57,7 +57,6 @@ public:
 		int16_t cp_B1_;
 		int16_t cp_B2_;
 
-		int16_t cp_MA_;
 		int16_t cp_MB_;
 		int16_t cp_MC_;
 		int16_t cp_MD_;
@@ -99,17 +98,20 @@ public:
 	//can be used as a communication check. 
 	uint8_t readID();
 
+	BMP180CalParams readCalParams();
+
 	/*
 	resets all registers to default values. */
 	void resetToDefaults();
 
+	/*
+	@return sampling mode as sampling_mode_t. */
 	uint8_t getSamplingMode();
 
+	/*
+	@param sampling mode as sampling_mode_t. 
+	@return true on success, false otherwise. */
 	bool setSamplingMode(uin8_t mode);
-
-	bool readSoftwareOversamplingMode();
-
-	bool writeSoftwareOversamplingMode();
 
 protected:
 	static const uint8_t BMP180_ID = 0x55;
@@ -220,10 +222,6 @@ private:
 	@param reg register to write to.
 	@param value value writeRegister write to register. */
 	virtual void writeRegister(uint8_t reg, uint8_t value) = 0;
-
-	bool readRawValues();
-
-	bool readCalibrationParameters();
 
 	BMP180CalParams cal_params_;
 
