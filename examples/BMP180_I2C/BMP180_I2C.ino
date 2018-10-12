@@ -28,7 +28,7 @@ void setup() {
 	//wait for serial connection to open (only necessary on some boards)
 	while (!Serial);
 
-	Wire.begin(D2, D3);
+	Wire.begin();
 
 	//begin() initializes the interface, checks the sensor ID and reads the calibration parameters.  
 	if (!bmp180.begin())
