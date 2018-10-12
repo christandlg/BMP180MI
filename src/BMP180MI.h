@@ -79,15 +79,17 @@ public:
 	//@return the last measured temperature, in deg C. 
 	float getTemperature();
 
-	//triggers a measurement and returns the measured temperature. 
+	//triggers a temperature measurement and returns the measured temperature, in deg C. 
+	//convenience function. blocks until temperature conversion is finished. do not use in time ciritical applications. 
 	//@return temperature in deg C or NAN if the measurement failed. 
 	float readTemperature();
 
-	//triggers a measurement and returns the measured pressure. 
+	//triggers a temperature measurement followed by a pressure measurement and returns the measured pressure, in Pa. 
+	//convenience function. blocks until pressure conversion is finished. do not use in time ciritical applications. 
 	//@return pressure in Pa or NAN if the measurement failed. 
 	float readPressure();
 
-	//@return the ID of the BMP180. the sensor will always return 0x58, so this function 
+	//@return the ID of the BMP180. the sensor will always return 0x55, so this function 
 	//can be used as a communication check. 
 	uint8_t readID();
 
