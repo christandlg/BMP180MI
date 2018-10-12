@@ -6,12 +6,12 @@
 // modify it under the terms of the GNU Lesser General Public
 // License as published by the Free Software Foundation; either
 // version 2.1 of the License, or (at your option) any later version.
-
+//
 // This library is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 // Lesser General Public License for more details.
-
+//
 // You should have received a copy of the GNU Lesser General Public
 // License along with this library; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
@@ -23,9 +23,24 @@ BMP180MI::BMP180MI() :
 	command_(0x00),
 	sampling_mode_(BMP180MI::MODE_ULP),
 	up_(0L),
-	ut_(0l)
+	ut_(0l),
+	B5_(0L)
 {
-	//nothing to do here...
+	cal_params_ = {
+	0, //cp_AC1_
+	0, //cp_AC2_
+	0, //cp_AC3_
+	0, //cp_AC4_
+	0, //cp_AC5_
+	0, //cp_AC6_
+
+	0, //cp_B1_
+	0, //cp_B2_
+
+	0, //cp_MB_
+	0, //cp_MC_
+	0, //cp_MD_
+	};
 }
 
 BMP180MI::~BMP180MI()

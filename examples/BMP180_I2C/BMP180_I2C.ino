@@ -45,9 +45,6 @@ void setup() {
 		while (1);
 	}
 
-	Serial.print("Sensor ID: ");
-	Serial.println(bmp180.readID(), HEX);
-
 	//reset sensor to default parameters.
 	bmp180.resetToDefaults();
 
