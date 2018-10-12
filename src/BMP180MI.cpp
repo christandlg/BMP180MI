@@ -251,10 +251,17 @@ uint8_t BMP180MI::getSamplingMode()
 
 bool BMP180MI::setSamplingMode(uint8_t mode)
 {
-	if (mode > 3)
+	switch (mode)
+	{
+	case BMP180MI::MODE_ULP:
+	case BMP180MI::MODE_STD:
+	case BMP180MI::MODE_HR:
+	case BMP180MI::MODE_UHR:
+		sampling_mode_ = mode;
+		break;
+	default:
 		return false;
-
-	sampling_mode_ = mode;
+	}
 
 	return true;
 }

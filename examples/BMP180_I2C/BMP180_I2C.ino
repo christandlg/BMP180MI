@@ -1,22 +1,15 @@
-// AS3935MI_LightningDetector_I2C.ino
+// BMP180_I2C.ino
 //
-// shows how to use the AS3935MI library with the lightning sensor connected using I2C.
+// shows how to use the BMP180MI library with the sensor connected using I2C.
 //
 // Copyright (c) 2018 Gregor Christandl
 //
-// connect the AS3935 to the Arduino like this:
-//
-// Arduino - AS3935
+// connect the BMP180 to the Arduino like this:
+// Arduino - BMC180
 // 5V ------ VCC
 // GND ----- GND
-// D2 ------ IRQ		must be a pin supporting external interrupts, e.g. D2 or D3 on an Arduino Uno.
-// SDA ----- MOSI
+// SDA ----- SDA
 // SCL ----- SCL
-// 5V ------ SI		(activates I2C for the AS3935)
-// 5V ------ A0		(sets the AS3935' I2C address to 0x01)
-// GND ----- A1		(sets the AS3935' I2C address to 0x01)
-// 5V ------ EN_VREG !IMPORTANT when using 5V Arduinos (Uno, Mega2560, ...)
-// other pins can be left unconnected.
 
 #include <Arduino.h>
 #include <Wire.h>
@@ -25,7 +18,7 @@
 
 #define I2C_ADDRESS 0x77
 
-//create an AS3935 object using the I2C interface, I2C address 0x01 and IRQ pin number 2
+//create an BMP180 object using the I2C interface
 BMP180I2C bmp180(I2C_ADDRESS);
 
 void setup() {
@@ -37,8 +30,7 @@ void setup() {
 
 	Wire.begin(D2, D3);
 
-	//begin() checks the Interface and I2C Address passed to the constructor and resets the AS3935 to 
-	//default values.
+	//begin() initializes the interface, checks the sensor ID and reads the calibration parameters.  
 	if (!bmp180.begin())
 	{
 		Serial.println("begin() failed. check your BMP180 Interface and I2C Address.");
@@ -50,8 +42,6 @@ void setup() {
 
 	//enable ultra high resolution mode for pressure measurements
 	bmp180.setSamplingMode(BMP180MI::MODE_UHR);
-
-	//...
 }
 
 void loop() {
@@ -59,14 +49,14 @@ void loop() {
 
 	delay(1000);
 
-	//start a measurement
+	//start a temperature measurement
 	if (!bmp180.measureTemperature())
 	{
 		Serial.println("could not start temperature measurement, is a measurement already running?");
 		return;
 	}
 
-	//wait for the measurement to finish
+	//wait for the measurement to finish. proceed as soon as hasValue() returned true. 
 	do
 	{
 		delay(100);
@@ -74,14 +64,15 @@ void loop() {
 
 	Serial.print("Temperature: "); Serial.println(bmp180.getTemperature());
 
-	//start a measurement
+	//start a pressure measurement. pressure measurements depend on temperature measurement, you should only start a pressure 
+	//measurement immediately after a temperature measurement. 
 	if (!bmp180.measurePressure())
 	{
 		Serial.println("could not start perssure measurement, is a measurement already running?");
 		return;
 	}
 
-	//wait for the measurement to finish
+	//wait for the measurement to finish. proceed as soon as hasValue() returned true. 
 	do
 	{
 		delay(100);
