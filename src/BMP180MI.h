@@ -93,7 +93,7 @@ public:
 
 	/*
 	@return BMP180CalParams struct containing BMP180 calibration parameters. */
-	BMP180CalParams readCalParams();
+	BMP180CalParams readCalibrationParameters();
 
 	/*
 	resets all registers to default values. */
@@ -106,7 +106,7 @@ public:
 	/*
 	@param sampling mode as sampling_mode_t. 
 	@return true on success, false otherwise. */
-	bool setSamplingMode(uin8_t mode);
+	bool setSamplingMode(uint8_t mode);
 
 private:
 	enum BMP180_register_t : uint8_t
@@ -151,9 +151,12 @@ private:
 		BMP180_MASK_OSS = 0b11000000,
 		BMP180_MASK_SCO = 0b00100000,
 		BMP180_MASK_MCTRL = 0b00011111,
+	};
 
+	enum BMP180_mask_32bit_t : uint32_t
+	{
 		//register 0xF6
-		BMP180_MASK_PRESS = 0x000FFFFF,		//20 bits
+		BMP180_MASK_PRESS = 0x00FFFFFF,		//20 bits
 		BMP180_MASK_TEMP = 0x0000FFFF,		//16 bits
 	};
 	
@@ -172,7 +175,11 @@ private:
 	@param register value of register.
 	@param mask mask of value in register
 	@return value of masked bits. */
-	uint8_t getMaskedBits(uint8_t reg, uint8_t mask);
+	template <class T> T getMaskedBits(T reg, T mask)
+	{
+		//extract masked bits
+		return ((reg & mask) >> getMaskShift(mask));
+	};
 
 	/*
 	@param register value of register
@@ -196,6 +203,14 @@ private:
 	void writeRegisterValue(uint8_t reg, uint8_t mask, uint8_t value);
 
 	/*
+	reads the masked values from multiple registers. maximum read length is 4 bytes.
+	@param reg register to read.
+	@param mask mask of value.
+	@param length number of bytes to read
+	@return register content */
+	uint32_t readRegisterValueBurst(uint8_t reg, uint32_t mask, uint8_t length);
+
+	/*
 	reads a register from the sensor. must be overwritten by derived classes.
 	@param reg register to read.
 	@return register content*/
@@ -206,7 +221,7 @@ private:
 	@param reg register to read.
 	@param length number of bytes to read
 	@return register content*/
-	virtual uint32_t readRegisterBurst(uint8_t reg, uint8_t length) = 0;
+	virtual uint32_t readRegisterBurst(uint8_t reg, uint8_t length);
 
 	/*
 	writes a register to the sensor. must be overwritten by derived classes.
@@ -216,6 +231,8 @@ private:
 	virtual void writeRegister(uint8_t reg, uint8_t value) = 0;
 
 	BMP180CalParams cal_params_;
+
+	uint8_t command_;
 
 	uint8_t sampling_mode_;
 
@@ -241,7 +258,7 @@ private:
 
 	void writeRegister(uint8_t reg, uint8_t value);
 
-	uint8_t i2c_address_;
+	uint8_t address_;
 };
 
 #endif /* BMP180MI_H_ */ 

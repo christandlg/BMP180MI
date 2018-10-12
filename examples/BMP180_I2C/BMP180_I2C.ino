@@ -23,10 +23,10 @@
 
 #include <BMP180MI.h>
 
-#define I2C_ADDRESS 0x76
+#define I2C_ADDRESS 0x77
 
 //create an AS3935 object using the I2C interface, I2C address 0x01 and IRQ pin number 2
-BMP180I2C BMP180(I2C_ADDRESS);
+BMP180I2C bmp180(I2C_ADDRESS);
 
 void setup() {
   // put your setup code here, to run once:
@@ -35,15 +35,23 @@ void setup() {
 	//wait for serial connection to open (only necessary on some boards)
 	while (!Serial);
 
-	Wire.begin();
+	Wire.begin(D2, D3);
 
 	//begin() checks the Interface and I2C Address passed to the constructor and resets the AS3935 to 
 	//default values.
-	if (!BMP180.begin())
+	if (!bmp180.begin())
 	{
 		Serial.println("begin() failed. check your BMP180 Interface and I2C Address.");
 		while (1);
 	}
+
+	Serial.print("Sensor ID: ");
+	Serial.println(bmp180.readID(), HEX);
+
+	//reset sensor to default parameters.
+	bmp180.resetToDefaults();
+
+	bmp180.setSamplingMode(BMP180MI::MODE_UHR);
 
 	//...
 }
@@ -54,9 +62,26 @@ void loop() {
 	delay(1000);
 
 	//start a measurement
-	if (!BMP180.measure())
+	if (!bmp180.measureTemperature())
 	{
-		Serial.println("could not start measurement, is a measurement already running?");
+		Serial.println("could not start temperature measurement, is a measurement already running?");
+		return;
+	}
+
+	bmp180.hasValue();
+
+	//wait for the measurement to finish
+	do
+	{
+		delay(100);
+	} while (!bmp180.hasValue());
+
+	Serial.print("Temperature: "); Serial.println(bmp180.getTemperature());
+
+	//start a measurement
+	if (!bmp180.measurePressure())
+	{
+		Serial.println("could not start perssure measurement, is a measurement already running?");
 		return;
 	}
 
@@ -64,8 +89,7 @@ void loop() {
 	do
 	{
 		delay(100);
-	} while (!BMP180.hasValue());
+	} while (!bmp180.hasValue());
 
-	Serial.print("Pressure: "); Serial.println(BMP180.getPressure());
-	Serial.print("Temperature: "); Serial.println(BMP180.getTemperature());
+	Serial.print("Pressure: "); Serial.println(bmp180.getPressure());
 }

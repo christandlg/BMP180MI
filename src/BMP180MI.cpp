@@ -19,10 +19,11 @@
 
 #include "BMP180MI.h"
 
-BMP180MI::BMP180MI() : 
-sampling_mode_(BMP180MI::MODE_ULP),
-up_(0L),
-ut_(0l)
+BMP180MI::BMP180MI() :
+	command_(0x00),
+	sampling_mode_(BMP180MI::MODE_ULP),
+	up_(0L),
+	ut_(0l)
 {
 	//nothing to do here...
 }
@@ -32,7 +33,7 @@ BMP180MI::~BMP180MI()
 	//nothing to do here...
 }
 
-bool BMx280MI::begin()
+bool BMP180MI::begin()
 {
 	//return false if the interface could not be initialized. 
 	if (!beginInterface())
@@ -42,7 +43,7 @@ bool BMx280MI::begin()
 	uint8_t id = readID();
 
 	//check sensor ID. return false if sensor ID does not match a BMP180 ID.
-	if (id != BMP180::BMP180_ID)
+	if (id != BMP180MI::BMP180_ID)
 		return false;
 
 	//read compensation parameters
@@ -56,11 +57,11 @@ bool BMP180MI::measurePressure()
 	//return false if a measurement is already running. 
 	if (readRegisterValue(BMP180_REG_CTRL_MEAS, BMP180_MASK_SCO))
 		return false;
-	
-	uint8_t measure_cmd = (sampling_mode_ << 6) | BMP180_CMD_PRESS;
 
-	//start a measurement. 
-	writeRegisterValue(BMP180_REG_CTRL_MEAS, BMP180_MASK_OSS | BMP180_MASK_MCTRL, measure_cmd);
+	command_ = BMP180_CMD_PRESS;
+
+	//start a measurement. command includes the 'start of conversion' bit. 
+	writeRegisterValue(BMP180_REG_CTRL_MEAS, BMP180_MASK_OSS | BMP180_MASK_SCO | BMP180_MASK_MCTRL, (sampling_mode_ << 6) | command_);
 
 	return true;
 }
@@ -71,31 +72,40 @@ bool BMP180MI::measureTemperature()
 	if (readRegisterValue(BMP180_REG_CTRL_MEAS, BMP180_MASK_SCO))
 		return false;
 
-	//start a measurement. 
-	writeRegisterValue(BMP180_REG_CTRL_MEAS, BMP180_MASK_MCTRL, BMP180_CMD_TEMP);
+	command_ = BMP180_CMD_TEMP;
+
+	//start a measurement. command includes the 'start of conversion' bit. 
+	writeRegisterValue(BMP180_REG_CTRL_MEAS, BMP180_MASK_SCO | BMP180_MASK_MCTRL, command_);
 
 	return true;
 }
 
 bool BMP180MI::hasValue()
 {
-	if(readRegisterValue(BMP180_REG_CTRL_MEAS, BMP180_MASK_SCO));
+	Serial.println("hasValue()");
+	Serial.println(readRegisterValue(BMP180_REG_CTRL_MEAS, 0xFF), HEX);
+
+	if (readRegisterValue(BMP180_REG_CTRL_MEAS, BMP180_MASK_SCO))
 		return false;
 
-	uint8_t mode = readRegisterValue(BMP180_REG_CTRL_MEAS, BMP180_MASK_MCTRL);
+	Serial.println(command_, HEX);
 
-	switch (mode)
+	switch (command_)
 	{
-		case BMP180_CMD_PRESS:
+	case BMP180_CMD_PRESS:
 		up_ = static_cast<int32_t>(readRegisterValueBurst(BMP180_REG_OUT, BMP180_MASK_PRESS, 3));
 		up_ >>= (8 - sampling_mode_);
+		Serial.print("up_: "); Serial.println(up_);
 		break;
-		case BMP180_CMD_TEMP:
-		up_ = static_cast<int32_t>(readRegisterValueBurst(BMP180_REG_OUT, BMP180_MASK_TEMP, 2));
+	case BMP180_CMD_TEMP:
+		ut_ = static_cast<int32_t>(readRegisterValueBurst(BMP180_REG_OUT, BMP180_MASK_TEMP, 2));
+		Serial.print("ut_: "); Serial.println(ut_);
 		break;
-		default:
+	default:
 		return false;
 	}
+
+	Serial.println("----------------------");
 
 	return true;
 }
@@ -106,7 +116,7 @@ float BMP180MI::getPressure()
 
 	int32_t B6 = B5_ - 4000;
 
-	int32_t X1 = (cal_params_.cp_B2_ * ((B6 * B6) >> 12) >> 11;
+	int32_t X1 = (cal_params_.cp_B2_ * ((B6 * B6) >> 12)) >> 11;
 
 	int32_t X2 = (cal_params_.cp_AC2_ * B6) >> 11;
 
@@ -116,7 +126,7 @@ float BMP180MI::getPressure()
 
 	X1 = (cal_params_.cp_AC3_ * B6) >> 13;
 
-	X2 = (cal_params_.B1 * ((B6 * B6) >> 12 )) >> 16;
+	X2 = (cal_params_.cp_B1_ * ((B6 * B6) >> 12)) >> 16;
 
 	X3 = (X1 + X2 + 2) >> 2;
 
@@ -142,15 +152,15 @@ float BMP180MI::getPressure()
 
 float BMP180MI::getTemperature()
 {
-	int32_t X1 = ((ut_ - cal_params_.AC6) * cal_params_.AC5) >> 15;
+	int32_t X1 = ((ut_ - static_cast<int32_t>(cal_params_.cp_AC6_)) * static_cast<int32_t>(cal_params_.cp_AC5_)) >> 15;
 
-	int32_t X2 = (cal_params_.cp_MC_ << 11) / (X1 + cal_params_.cp_MD_);
+	int32_t X2 = (static_cast<int32_t>(cal_params_.cp_MC_) << 11) / (X1 + static_cast<int32_t>(cal_params_.cp_MD_));
 
 	B5_ = X1 + X2;
 
 	int32_t T = (B5_ + 8) >> 4;
 
-	return static_cast<float>(T) * 0.01;
+	return static_cast<float>(T) * 0.1;
 }
 
 float BMP180MI::readTemperature()
@@ -168,7 +178,7 @@ float BMP180MI::readTemperature()
 
 float BMP180MI::readPressure()
 {
-	if (isNAN(readTemperature()))
+	if (isnan(readTemperature()))
 		return NAN;
 
 	if (!measurePressure())
@@ -189,17 +199,17 @@ uint8_t BMP180MI::readID()
 
 BMP180MI::BMP180CalParams BMP180MI::readCalibrationParameters()
 {
-	BMP180MI cal_params = {
+	BMP180MI::BMP180CalParams cal_params = {
 		0, //cp_AC1_
 		0, //cp_AC2_
 		0, //cp_AC3_
 		0, //cp_AC4_
 		0, //cp_AC5_
 		0, //cp_AC6_
-		
+
 		0, //cp_B1_
 		0, //cp_B2_
-		
+
 		0, //cp_MB_
 		0, //cp_MC_
 		0, //cp_MD_
@@ -207,15 +217,15 @@ BMP180MI::BMP180CalParams BMP180MI::readCalibrationParameters()
 
 	//read compensation parameters
 	cal_params.cp_AC1_ = static_cast<int16_t>(readRegisterValueBurst(BMP180_REG_CAL_AC1, BMP180_MASK_CAL, 2));
-	cal_params.cp_AC2_ = static_cast<int16_t>(readRegisterValueBurst(BMP180_REG_CAL_AC1, BMP180_MASK_CAL, 2));
-	cal_params.cp_AC3_ = static_cast<int16_t>(readRegisterValueBurst(BMP180_REG_CAL_AC1, BMP180_MASK_CAL, 2));
-	cal_params.cp_AC4_ = readRegisterValueBurst(BMP180_REG_CAL_AC1, BMP180_MASK_CAL, 2);
-	cal_params.cp_AC5_ = readRegisterValueBurst(BMP180_REG_CAL_AC1, BMP180_MASK_CAL, 2);
-	cal_params.cp_AC6_ = readRegisterValueBurst(BMP180_REG_CAL_AC1, BMP180_MASK_CAL, 2);
-	
+	cal_params.cp_AC2_ = static_cast<int16_t>(readRegisterValueBurst(BMP180_REG_CAL_AC2, BMP180_MASK_CAL, 2));
+	cal_params.cp_AC3_ = static_cast<int16_t>(readRegisterValueBurst(BMP180_REG_CAL_AC3, BMP180_MASK_CAL, 2));
+	cal_params.cp_AC4_ = readRegisterValueBurst(BMP180_REG_CAL_AC4, BMP180_MASK_CAL, 2);
+	cal_params.cp_AC5_ = readRegisterValueBurst(BMP180_REG_CAL_AC5, BMP180_MASK_CAL, 2);
+	cal_params.cp_AC6_ = readRegisterValueBurst(BMP180_REG_CAL_AC6, BMP180_MASK_CAL, 2);
+
 	cal_params.cp_B1_ = static_cast<int16_t>(readRegisterValueBurst(BMP180_REG_CAL_B1, BMP180_MASK_CAL, 2));
 	cal_params.cp_B2_ = static_cast<int16_t>(readRegisterValueBurst(BMP180_REG_CAL_B2, BMP180_MASK_CAL, 2));
-	
+
 	cal_params.cp_MB_ = static_cast<int16_t>(readRegisterValueBurst(BMP180_REG_CAL_MB, BMP180_MASK_CAL, 2));
 	cal_params.cp_MC_ = static_cast<int16_t>(readRegisterValueBurst(BMP180_REG_CAL_MC, BMP180_MASK_CAL, 2));
 	cal_params.cp_MD_ = static_cast<int16_t>(readRegisterValueBurst(BMP180_REG_CAL_MD, BMP180_MASK_CAL, 2));
@@ -225,7 +235,7 @@ BMP180MI::BMP180CalParams BMP180MI::readCalibrationParameters()
 
 void BMP180MI::resetToDefaults()
 {
-	writeRegisterValue(BMP180_REG_RESET, BMP180_MASK_RESET, BMP180_CMD_RESET);
+	writeRegister(BMP180_REG_RESET, BMP180_CMD_RESET);
 }
 
 uint8_t BMP180MI::getSamplingMode()
@@ -233,7 +243,7 @@ uint8_t BMP180MI::getSamplingMode()
 	return sampling_mode_;
 }
 
-bool BMP180MI::setSamplingMode(uin8_t mode)
+bool BMP180MI::setSamplingMode(uint8_t mode)
 {
 	if (mode > 3)
 		return false;
@@ -241,7 +251,7 @@ bool BMP180MI::setSamplingMode(uin8_t mode)
 	sampling_mode_ = mode;
 
 	return true;
-}	
+}
 
 uint8_t BMP180MI::getMaskShift(uint8_t mask)
 {
@@ -260,16 +270,15 @@ uint8_t BMP180MI::getMaskShift(uint8_t mask)
 	return return_value;
 }
 
-uint8_t BMP180MI::getMaskedBits(uint8_t reg, uint8_t mask)
-{
-	//extract masked bits
-	return ((reg & mask) >> getMaskShift(mask));
-}
-
 uint8_t BMP180MI::setMaskedBits(uint8_t reg, uint8_t mask, uint8_t value)
 {
 	//clear mask bits in register
 	reg &= (~mask);
+
+	Serial.print(reg, HEX); Serial.print(" ");
+	Serial.print(mask, HEX); Serial.print(" ");
+	Serial.print(value, HEX); Serial.print(": ");
+	Serial.print(((value << getMaskShift(mask)) & mask) | reg, HEX); Serial.print(" ");
 
 	//set masked bits in register according to value
 	return ((value << getMaskShift(mask)) & mask) | reg;
@@ -310,7 +319,7 @@ uint32_t BMP180MI::readRegisterBurst(uint8_t reg, uint8_t length)
 //-----------------------------------------------------------------------
 //BMP180I2C
 BMP180I2C::BMP180I2C(uint8_t i2c_address) :
-	i2c_address_(i2c_address)
+	address_(i2c_address)
 {
 	//nothing to do here...
 }
@@ -327,18 +336,20 @@ bool BMP180I2C::beginInterface()
 
 uint8_t BMP180I2C::readRegister(uint8_t reg)
 {
-	#if defined(ARDUINO_SAM_DUE)
-		//workaround for Arduino Due. The Due seems not to send a repeated start with the code above, so this 
-		//undocumented feature of Wire::requestFrom() is used. can be used on other Arduinos too (tested on Mega2560)
-		//see this thread for more info: https://forum.arduino.cc/index.php?topic=385377.0
-		Wire.requestFrom(address_, 1, reg, 1, true);
-	#else
-		Wire.beginTransmission(i2c_address_);
-		Wire.write(reg);
-		Wire.endTransmission(false);
-		Wire.requestFrom(address_, static_cast<uint8_t>(1));
-	#endif
-	
+#if defined(ARDUINO_SAM_DUE)
+	//workaround for Arduino Due. The Due seems not to send a repeated start with the code above, so this 
+	//undocumented feature of Wire::requestFrom() is used. can be used on other Arduinos too (tested on Mega2560)
+	//see this thread for more info: https://forum.arduino.cc/index.php?topic=385377.0
+	Wire.requestFrom(address_, 1, reg, 1, true);
+#else
+	Wire.beginTransmission(address_);
+	Wire.write(reg);
+	Wire.endTransmission(false);
+	Wire.requestFrom(address_, static_cast<uint8_t>(1));
+#endif
+
+	Serial.print("readRegister() "); Serial.println(Wire.peek(), HEX);
+
 	return Wire.read();
 }
 
@@ -372,7 +383,7 @@ uint32_t BMP180I2C::readRegisterBurst(uint8_t reg, uint8_t length)
 
 void BMP180I2C::writeRegister(uint8_t reg, uint8_t value)
 {
-	Wire.beginTransmission(i2c_address_);
+	Wire.beginTransmission(address_);
 	Wire.write(reg);
 	Wire.write(value);
 	Wire.endTransmission();
