@@ -82,30 +82,21 @@ bool BMP180MI::measureTemperature()
 
 bool BMP180MI::hasValue()
 {
-	Serial.println("hasValue()");
-	Serial.println(readRegisterValue(BMP180_REG_CTRL_MEAS, 0xFF), HEX);
-
 	if (readRegisterValue(BMP180_REG_CTRL_MEAS, BMP180_MASK_SCO))
 		return false;
-
-	Serial.println(command_, HEX);
 
 	switch (command_)
 	{
 	case BMP180_CMD_PRESS:
 		up_ = static_cast<int32_t>(readRegisterValueBurst(BMP180_REG_OUT, BMP180_MASK_PRESS, 3));
 		up_ >>= (8 - sampling_mode_);
-		Serial.print("up_: "); Serial.println(up_);
 		break;
 	case BMP180_CMD_TEMP:
 		ut_ = static_cast<int32_t>(readRegisterValueBurst(BMP180_REG_OUT, BMP180_MASK_TEMP, 2));
-		Serial.print("ut_: "); Serial.println(ut_);
 		break;
 	default:
 		return false;
 	}
-
-	Serial.println("----------------------");
 
 	return true;
 }
@@ -116,21 +107,21 @@ float BMP180MI::getPressure()
 
 	int32_t B6 = B5_ - 4000;
 
-	int32_t X1 = (cal_params_.cp_B2_ * ((B6 * B6) >> 12)) >> 11;
+	int32_t X1 = (static_cast<int32_t>(cal_params_.cp_B2_) * ((B6 * B6) >> 12)) >> 11;
 
-	int32_t X2 = (cal_params_.cp_AC2_ * B6) >> 11;
+	int32_t X2 = (static_cast<int32_t>(cal_params_.cp_AC2_) * B6) >> 11;
 
 	int32_t X3 = X1 + X2;
 
-	int32_t B3 = ((((cal_params_.cp_AC1_ << 2) + X3) << sampling_mode_) + 2) >> 2;
+	int32_t B3 = ((((static_cast<int32_t>(cal_params_.cp_AC1_) << 2) + X3) << sampling_mode_) + 2) >> 2;
 
-	X1 = (cal_params_.cp_AC3_ * B6) >> 13;
+	X1 = (static_cast<int32_t>(cal_params_.cp_AC3_) * B6) >> 13;
 
-	X2 = (cal_params_.cp_B1_ * ((B6 * B6) >> 12)) >> 16;
+	X2 = (static_cast<int32_t>(cal_params_.cp_B1_) * ((B6 * B6) >> 12)) >> 16;
 
 	X3 = (X1 + X2 + 2) >> 2;
 
-	uint32_t B4 = cal_params_.cp_AC4_ * (static_cast<uint32_t>(X3 + 32768) >> 15);
+	uint32_t B4 = static_cast<uint32_t>(cal_params_.cp_AC4_) * (static_cast<uint32_t>(X3 + 32768)) >> 15;
 
 	uint32_t B7 = static_cast<uint32_t>(up_ - B3) * (50000 >> sampling_mode_);
 
@@ -139,7 +130,7 @@ float BMP180MI::getPressure()
 	else
 		p = (B7 / B4) << 1;
 
-	X1 = (p << 8) * (p << 8);
+	X1 = (p >> 8) * (p >> 8);
 
 	X1 = (X1 * 3038) >> 16;
 
@@ -275,11 +266,6 @@ uint8_t BMP180MI::setMaskedBits(uint8_t reg, uint8_t mask, uint8_t value)
 	//clear mask bits in register
 	reg &= (~mask);
 
-	Serial.print(reg, HEX); Serial.print(" ");
-	Serial.print(mask, HEX); Serial.print(" ");
-	Serial.print(value, HEX); Serial.print(": ");
-	Serial.print(((value << getMaskShift(mask)) & mask) | reg, HEX); Serial.print(" ");
-
 	//set masked bits in register according to value
 	return ((value << getMaskShift(mask)) & mask) | reg;
 }
@@ -347,8 +333,6 @@ uint8_t BMP180I2C::readRegister(uint8_t reg)
 	Wire.endTransmission(false);
 	Wire.requestFrom(address_, static_cast<uint8_t>(1));
 #endif
-
-	Serial.print("readRegister() "); Serial.println(Wire.peek(), HEX);
 
 	return Wire.read();
 }

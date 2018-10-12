@@ -51,6 +51,7 @@ void setup() {
 	//reset sensor to default parameters.
 	bmp180.resetToDefaults();
 
+	//enable ultra high resolution mode for pressure measurements
 	bmp180.setSamplingMode(BMP180MI::MODE_UHR);
 
 	//...
@@ -67,8 +68,6 @@ void loop() {
 		Serial.println("could not start temperature measurement, is a measurement already running?");
 		return;
 	}
-
-	bmp180.hasValue();
 
 	//wait for the measurement to finish
 	do
