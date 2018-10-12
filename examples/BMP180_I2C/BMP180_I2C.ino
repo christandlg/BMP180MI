@@ -62,7 +62,9 @@ void loop() {
 		delay(100);
 	} while (!bmp180.hasValue());
 
-	Serial.print("Temperature: "); Serial.println(bmp180.getTemperature());
+	Serial.print("Temperature: "); 
+	Serial.print(bmp180.getTemperature()); 
+	Serial.println(" degC");
 
 	//start a pressure measurement. pressure measurements depend on temperature measurement, you should only start a pressure 
 	//measurement immediately after a temperature measurement. 
@@ -78,5 +80,7 @@ void loop() {
 		delay(100);
 	} while (!bmp180.hasValue());
 
-	Serial.print("Pressure: "); Serial.println(bmp180.getPressure());
+	Serial.print("Pressure: "); 
+	Serial.print(bmp180.getPressure());
+	Serial.println(" Pa");
 }
