@@ -52,7 +52,7 @@ public:
 		int16_t cp_MC_;
 		int16_t cp_MD_;
 	};
-	
+
 	static const uint8_t BMP180_ID = 0x55;
 
 	BMP180MI();
@@ -106,7 +106,7 @@ public:
 	uint8_t getSamplingMode();
 
 	/*
-	@param sampling mode as sampling_mode_t. 
+	@param sampling mode as sampling_mode_t.
 	@return true on success, false otherwise. */
 	bool setSamplingMode(uint8_t mode);
 
@@ -119,23 +119,23 @@ private:
 		BMP180_REG_CTRL_MEAS = 0xF4,	//sets data acquisition options of device	
 		BMP180_REG_CONFIG = 0xF5,		//sets the rate, filter and interface options of the device.
 		BMP180_REG_OUT = 0xF6,			//raw conversion results
-		
+
 		BMP180_REG_CAL_AC1 = 0xAA,		//2 bytes each. can never be 0x0000 or oxFFFF
 		BMP180_REG_CAL_AC2 = 0xAC,
 		BMP180_REG_CAL_AC3 = 0xAE,
 		BMP180_REG_CAL_AC4 = 0xB0,
 		BMP180_REG_CAL_AC5 = 0xB2,
 		BMP180_REG_CAL_AC6 = 0xB4,
-		
+
 		BMP180_REG_CAL_B1 = 0xB6,
 		BMP180_REG_CAL_B2 = 0xB8,
-		
+
 		BMP180_REG_CAL_MB = 0xBA,
 		BMP180_REG_CAL_MC = 0xBC,
-		BMP180_REG_CAL_MD = 0xBE,	
+		BMP180_REG_CAL_MD = 0xBE,
 	};
 
-	enum BMP180_command_t : uint8_t 
+	enum BMP180_command_t : uint8_t
 	{
 		BMP180_CMD_TEMP = 0x2E,			//start temperature conversion
 		BMP180_CMD_PRESS = 0x34,		//start pressure conversion
@@ -161,7 +161,7 @@ private:
 		BMP180_MASK_PRESS = 0x00FFFFFF,		//20 bits
 		BMP180_MASK_TEMP = 0x0000FFFF,		//16 bits
 	};
-	
+
 	static const uint16_t BMP180_MASK_CAL = 0xFFFF;
 
 	static const uint8_t BMP180_CMD_RESET = 0xB6;
