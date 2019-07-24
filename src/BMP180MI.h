@@ -1,5 +1,5 @@
 //Multi interface Bosch Sensortec BMP180  pressure sensor library 
-// Copyright (c) 2018 Gregor Christandl <christandlg@yahoo.com>
+// Copyright (c) 2018-2019 Gregor Christandl <christandlg@yahoo.com>
 // home: https://bitbucket.org/christandlg/BMP180mi
 //
 // This library is free software; you can redistribute it and/or
@@ -21,8 +21,6 @@
 #define BMP180MI_H_
 
 #include <Arduino.h>
-
-#include <Wire.h>
 
 class BMP180MI
 {
@@ -243,24 +241,6 @@ private:
 	int32_t ut_;
 
 	int32_t B5_;
-};
-
-class BMP180I2C : public BMP180MI
-{
-public:
-	BMP180I2C(uint8_t i2c_address);
-	virtual ~BMP180I2C();
-
-private:
-	bool beginInterface();
-
-	uint8_t readRegister(uint8_t reg);
-
-	uint32_t readRegisterBurst(uint8_t reg, uint8_t length);
-
-	void writeRegister(uint8_t reg, uint8_t value);
-
-	uint8_t address_;
 };
 
 #endif /* BMP180MI_H_ */ 

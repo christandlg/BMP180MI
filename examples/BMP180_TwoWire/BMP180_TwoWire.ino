@@ -14,12 +14,12 @@
 #include <Arduino.h>
 #include <Wire.h>
 
-#include <BMP180I2C.h>
+#include <BMP180TwoWire.h>
 
 #define I2C_ADDRESS 0x77
 
 //create an BMP180 object using the I2C interface
-BMP180I2C bmp180(I2C_ADDRESS);
+BMP180TwoWire bmp180(&Wire, I2C_ADDRESS);
 
 void setup() {
   // put your setup code here, to run once:
