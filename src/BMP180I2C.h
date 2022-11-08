@@ -16,7 +16,7 @@
 // License along with this library; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-#ifndef BMP180I2CE_H_
+#ifndef BMP180I2C_H_
 #define BMP180I2C_H_
 
 #include "BMP180TwoWire.h"

@@ -10,6 +10,8 @@ sensor: https://www.bosch-sensortec.com/bst/products/all_products/bmp180
 - Never blocks or delays (except for convenience functions)
 
 ## Changelog:
+- 1.0.1
+	- fixed an include guard error. thanks to https://github.com/wollewald for reporting this error. 
 - 1.0.0
 	- added new class BMP180TwoWire for TwoWire interfaces
 	- moved BMP180I2C class into its own source files, further separating data processing from communications
